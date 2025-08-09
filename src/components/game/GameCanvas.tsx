@@ -39,6 +39,8 @@ export const GameCanvas = () => {
   const starsRef = useRef<{ x: number; y: number; z: number }[]>([]);
   const lastTimeRef = useRef<number | null>(null);
   const spawnTimerRef = useRef(0);
+  const aimRef = useRef<Vec2>({ x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 - 120 });
+  const firingRef = useRef(false);
 
   // Setup input
   useEffect(() => {
@@ -118,21 +120,18 @@ export const GameCanvas = () => {
     };
     const onPointerDown = (e: PointerEvent) => {
       isPointerDown = true;
-      const p = playerRef.current;
-      if (!p) return;
       const { x, y } = toCanvas(e.clientX, e.clientY);
-      p.pos.x = clamp(x, 20, INTERNAL_WIDTH - 20);
-      p.pos.y = clamp(y, 20, INTERNAL_HEIGHT - 20);
+      aimRef.current = { x, y };
+      firingRef.current = true;
     };
     const onPointerMove = (e: PointerEvent) => {
-      if (!isPointerDown) return;
-      const p = playerRef.current;
-      if (!p) return;
       const { x, y } = toCanvas(e.clientX, e.clientY);
-      p.pos.x = clamp(x, 20, INTERNAL_WIDTH - 20);
-      p.pos.y = clamp(y, 20, INTERNAL_HEIGHT - 20);
+      aimRef.current = { x, y };
     };
-    const onPointerUp = () => { isPointerDown = false; };
+    const onPointerUp = () => {
+      isPointerDown = false;
+      firingRef.current = false;
+    };
 
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
@@ -179,17 +178,24 @@ export const GameCanvas = () => {
     player.pos.x = clamp(player.pos.x + (player.vel.x / len) * player.speed * dt, 20, INTERNAL_WIDTH - 20);
     player.pos.y = clamp(player.pos.y + (player.vel.y / len) * player.speed * dt, 20, INTERNAL_HEIGHT - 20);
 
-    // Shooting
+    // Shooting (rapid-fire, toward aim)
     player.cooldown -= dt;
-    if ((keys.current[" "] || keys.current["space"] || keys.current["space".toUpperCase()]) && player.cooldown <= 0) {
+    const firing = firingRef.current || keys.current[" "] || keys.current["space"];
+    if (firing && player.cooldown <= 0) {
+      const ax = aimRef.current.x - player.pos.x;
+      const ay = aimRef.current.y - player.pos.y;
+      const L = Math.hypot(ax, ay) || 1;
+      const dirx = ax / L;
+      const diry = ay / L;
+      const speed = 820;
       bulletsRef.current.push({
-        pos: { x: player.pos.x, y: player.pos.y - 18 },
-        vel: { x: 0, y: -520 },
-        radius: 4,
+        pos: { x: player.pos.x + dirx * 18, y: player.pos.y + diry * 18 },
+        vel: { x: dirx * speed, y: diry * speed },
+        radius: 3.5,
         alive: true,
         fromPlayer: true,
       });
-      player.cooldown = 0.18;
+      player.cooldown = 0.06;
     }
 
     // Update bullets
@@ -213,20 +219,19 @@ export const GameCanvas = () => {
       spawnTimerRef.current = Math.max(0.6, 2.4 - score * 0.002);
     }
 
-    // Update enemies
+    // Update enemies (seek the player)
     enemiesRef.current.forEach((e) => {
       e.t += dt;
-      // patterns
-      if (e.pattern === 0) {
-        e.pos.y += 60 * dt;
-      } else if (e.pattern === 1) {
-        e.pos.y += 70 * dt;
-        e.pos.x += Math.sin(e.t * 3) * 60 * dt;
-      } else {
-        e.pos.y += 90 * dt;
-        e.pos.x += Math.cos(e.t * 2) * 40 * dt;
-      }
-      if (e.pos.y > INTERNAL_HEIGHT + 40) e.alive = false;
+      const player = playerRef.current;
+      if (!player) return;
+      const dx = player.pos.x - e.pos.x;
+      const dy = player.pos.y - e.pos.y;
+      const l = Math.hypot(dx, dy) || 1;
+      const base = 48 + Math.min(140, score * 0.05);
+      const jitterX = Math.sin(e.t * 2 + e.pos.y * 0.03) * 14;
+      const jitterY = Math.cos(e.t * 2 + e.pos.x * 0.03) * 14;
+      e.pos.x += (dx / l) * base * dt + jitterX * dt;
+      e.pos.y += (dy / l) * base * dt + jitterY * dt;
     });
     enemiesRef.current = enemiesRef.current.filter((e) => e.alive);
 
@@ -305,17 +310,21 @@ export const GameCanvas = () => {
   };
 
   const spawnWave = () => {
-    const cols = 4 + Math.floor(Math.random() * 3);
-    const gap = INTERNAL_WIDTH / (cols + 1);
-    const pattern = Math.floor(Math.random() * 3);
-    for (let i = 0; i < cols; i++) {
+    const count = 6 + Math.floor(Math.random() * 4) + Math.floor(score / 300);
+    for (let i = 0; i < count; i++) {
+      const side = Math.floor(Math.random() * 4); // 0:top,1:right,2:bottom,3:left
+      let x = 0, y = 0;
+      if (side === 0) { x = Math.random() * INTERNAL_WIDTH; y = -30; }
+      else if (side === 1) { x = INTERNAL_WIDTH + 30; y = Math.random() * INTERNAL_HEIGHT; }
+      else if (side === 2) { x = Math.random() * INTERNAL_WIDTH; y = INTERNAL_HEIGHT + 30; }
+      else { x = -30; y = Math.random() * INTERNAL_HEIGHT; }
       enemiesRef.current.push({
-        pos: { x: gap * (i + 1), y: -30 },
-        vel: { x: 0, y: 60 },
+        pos: { x, y },
+        vel: { x: 0, y: 0 },
         radius: 16,
         alive: true,
-        hp: 2 + Math.floor(score / 500),
-        pattern,
+        hp: 1 + Math.floor(score / 600),
+        pattern: Math.floor(Math.random() * 3),
         t: 0,
       });
     }
@@ -325,14 +334,17 @@ export const GameCanvas = () => {
     // scale for crisp rendering
     ctx.clearRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
-    // Background starfield
-    ctx.fillStyle = "hsla(248, 29%, 8%, 1)";
+    // Dark jungle background
+    const bg = ctx.createLinearGradient(0, 0, 0, INTERNAL_HEIGHT);
+    bg.addColorStop(0, "hsl(140, 20%, 6%)");
+    bg.addColorStop(1, "hsl(140, 22%, 4%)");
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
-    // stars
+    // fireflies in the jungle
     for (const s of starsRef.current) {
-      const alpha = 0.3 + s.z * 0.35;
-      ctx.fillStyle = `hsla(${198}, 93%, ${50 + s.z * 20}%, ${alpha})`;
+      const alpha = 0.15 + s.z * 0.25;
+      ctx.fillStyle = `hsla(${120 + s.z * 20}, 50%, ${35 + s.z * 25}%, ${alpha})`;
       ctx.fillRect(s.x, s.y, 2, 2);
     }
 
@@ -354,12 +366,12 @@ export const GameCanvas = () => {
       ctx.fill();
     });
 
-    // enemies
+    // enemies (alien glow)
     enemiesRef.current.forEach((e) => {
       ctx.save();
       const grd = ctx.createRadialGradient(e.pos.x, e.pos.y, 4, e.pos.x, e.pos.y, 20);
-      grd.addColorStop(0, "hsla(258,85%,62%,0.9)");
-      grd.addColorStop(1, "hsla(258,85%,40%,0.2)");
+      grd.addColorStop(0, "hsla(135,80%,55%,0.9)");
+      grd.addColorStop(1, "hsla(135,80%,30%,0.15)");
       ctx.fillStyle = grd;
       ctx.beginPath();
       ctx.arc(e.pos.x, e.pos.y, e.radius, 0, Math.PI * 2);
@@ -367,11 +379,14 @@ export const GameCanvas = () => {
       ctx.restore();
     });
 
-    // player
+    // player (marine) aiming toward flashlight
     const player = playerRef.current;
     if (player && player.alive) {
       ctx.save();
+      const aim = aimRef.current;
+      const ang = Math.atan2(aim.y - player.pos.y, aim.x - player.pos.x);
       ctx.translate(player.pos.x, player.pos.y);
+      ctx.rotate(ang + Math.PI / 2);
       ctx.fillStyle = "hsl(var(--primary))";
       ctx.strokeStyle = "hsl(var(--primary))";
       ctx.lineWidth = 2;
@@ -385,6 +400,35 @@ export const GameCanvas = () => {
       ctx.shadowColor = "hsla(258,85%,62%,0.6)";
       ctx.shadowBlur = 12;
       ctx.stroke();
+      ctx.restore();
+
+      // flashlight cone (reveals darkness ahead)
+      ctx.save();
+      // darkness overlay
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(0,0,0,0.86)";
+      ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
+      // cut out a cone in front of the player
+      const len = 240;
+      const spread = Math.PI / 6; // 30°
+      const pAng = ang;
+      const p1x = player.pos.x + Math.cos(pAng - spread) * len;
+      const p1y = player.pos.y + Math.sin(pAng - spread) * len;
+      const p2x = player.pos.x + Math.cos(pAng + spread) * len;
+      const p2y = player.pos.y + Math.sin(pAng + spread) * len;
+
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.moveTo(player.pos.x, player.pos.y);
+      ctx.lineTo(p1x, p1y);
+      ctx.arc(player.pos.x, player.pos.y, len, pAng - spread, pAng + spread);
+      ctx.closePath();
+      const cone = ctx.createRadialGradient(player.pos.x, player.pos.y, 0, player.pos.x, player.pos.y, len);
+      cone.addColorStop(0, "rgba(0,0,0,1)");
+      cone.addColorStop(0.6, "rgba(0,0,0,0.6)");
+      cone.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = cone;
+      ctx.fill();
       ctx.restore();
     }
   };
