@@ -37,10 +37,50 @@ export const GameCanvas = () => {
   const enemiesRef = useRef<Enemy[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const starsRef = useRef<{ x: number; y: number; z: number }[]>([]);
+  // Jungle ground pattern tile and pattern
+  const groundTileRef = useRef<HTMLCanvasElement | null>(null);
+  const groundPatternRef = useRef<CanvasPattern | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const spawnTimerRef = useRef(0);
   const aimRef = useRef<Vec2>({ x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 - 120 });
   const firingRef = useRef(false);
+
+  // Build jungle ground tile once
+  const buildJungleTile = () => {
+    if (groundTileRef.current) return;
+    const tile = document.createElement("canvas");
+    tile.width = 160;
+    tile.height = 160;
+    const c = tile.getContext("2d");
+    if (!c) return;
+    // base ground
+    c.fillStyle = "hsl(140, 20%, 8%)";
+    c.fillRect(0, 0, tile.width, tile.height);
+    // leaf clusters
+    for (let i = 0; i < 28; i++) {
+      const x = Math.random() * tile.width;
+      const y = Math.random() * tile.height;
+      const r = 8 + Math.random() * 14;
+      c.save();
+      c.translate(x, y);
+      c.rotate(Math.random() * Math.PI);
+      c.fillStyle = "hsla(140, 28%, 14%, 0.7)";
+      c.beginPath();
+      c.moveTo(0, -r);
+      c.quadraticCurveTo(r * 0.8, -r * 0.2, 0, r);
+      c.quadraticCurveTo(-r * 0.8, -r * 0.2, 0, -r);
+      c.fill();
+      c.restore();
+    }
+    // speckled debris
+    for (let i = 0; i < 260; i++) {
+      const x = Math.random() * tile.width;
+      const y = Math.random() * tile.height;
+      c.fillStyle = i % 2 ? "hsla(140, 16%, 12%, 0.5)" : "hsla(140, 12%, 10%, 0.4)";
+      c.fillRect(x, y, 1, 1);
+    }
+    groundTileRef.current = tile;
+  };
 
   // Setup input
   useEffect(() => {
@@ -110,6 +150,14 @@ export const GameCanvas = () => {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // ensure jungle ground pattern
+    if (!groundPatternRef.current) {
+      if (!groundTileRef.current) buildJungleTile();
+      if (groundTileRef.current) {
+        groundPatternRef.current = ctx.createPattern(groundTileRef.current, "repeat");
+      }
+    }
 
     let isPointerDown = false;
     const toCanvas = (clientX: number, clientY: number) => {
@@ -275,11 +323,13 @@ export const GameCanvas = () => {
 
     // Stars
     starsRef.current.forEach((s) => {
-      s.y += (20 + s.z * 60) * dt;
-      if (s.y > INTERNAL_HEIGHT) {
-        s.y = 0;
-        s.x = Math.random() * INTERNAL_WIDTH;
-      }
+      const drift = 6 + s.z * 8;
+      s.x += Math.sin((s.y + s.z) * 0.05) * drift * dt;
+      s.y += Math.cos((s.x + s.z) * 0.05) * drift * dt;
+      if (s.x < 0) s.x += INTERNAL_WIDTH;
+      if (s.x > INTERNAL_WIDTH) s.x -= INTERNAL_WIDTH;
+      if (s.y < 0) s.y += INTERNAL_HEIGHT;
+      if (s.y > INTERNAL_HEIGHT) s.y -= INTERNAL_HEIGHT;
     });
   };
 
@@ -334,11 +384,29 @@ export const GameCanvas = () => {
     // scale for crisp rendering
     ctx.clearRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
-    // Dark jungle background
-    const bg = ctx.createLinearGradient(0, 0, 0, INTERNAL_HEIGHT);
-    bg.addColorStop(0, "hsl(140, 20%, 6%)");
-    bg.addColorStop(1, "hsl(140, 22%, 4%)");
-    ctx.fillStyle = bg;
+    // Jungle ground pattern
+    if (groundPatternRef.current) {
+      ctx.fillStyle = groundPatternRef.current;
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, 0, INTERNAL_HEIGHT);
+      bg.addColorStop(0, "hsl(140, 20%, 6%)");
+      bg.addColorStop(1, "hsl(140, 22%, 4%)");
+      ctx.fillStyle = bg;
+    }
+    ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
+
+    // subtle ambient moonlight to reveal ground and enemies
+    const ambient = ctx.createRadialGradient(
+      INTERNAL_WIDTH * 0.5,
+      INTERNAL_HEIGHT * 0.2,
+      20,
+      INTERNAL_WIDTH * 0.5,
+      INTERNAL_HEIGHT * 0.2,
+      INTERNAL_HEIGHT * 0.9
+    );
+    ambient.addColorStop(0, "rgba(255,255,255,0.07)");
+    ambient.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = ambient;
     ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
     // fireflies in the jungle
@@ -406,7 +474,7 @@ export const GameCanvas = () => {
       ctx.save();
       // darkness overlay
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "rgba(0,0,0,0.86)";
+      ctx.fillStyle = "rgba(0,0,0,0.78)";
       ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
       // cut out a cone in front of the player
       const len = 240;
