@@ -40,6 +40,7 @@ export const GameCanvas = () => {
   // Jungle ground pattern tile and pattern
   const groundTileRef = useRef<HTMLCanvasElement | null>(null);
   const groundPatternRef = useRef<CanvasPattern | null>(null);
+  const timeRef = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
   const spawnTimerRef = useRef(0);
   const aimRef = useRef<Vec2>({ x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 - 120 });
@@ -210,6 +211,7 @@ export const GameCanvas = () => {
   }, [running, paused, gameOver]);
 
   const update = (dt: number) => {
+    timeRef.current += dt;
     const player = playerRef.current;
     if (!player) return;
 
@@ -404,16 +406,25 @@ export const GameCanvas = () => {
       INTERNAL_HEIGHT * 0.2,
       INTERNAL_HEIGHT * 0.9
     );
-    ambient.addColorStop(0, "rgba(255,255,255,0.07)");
+    ambient.addColorStop(0, "rgba(255,255,255,0.12)");
     ambient.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = ambient;
     ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
     // fireflies in the jungle
     for (const s of starsRef.current) {
-      const alpha = 0.15 + s.z * 0.25;
-      ctx.fillStyle = `hsla(${120 + s.z * 20}, 50%, ${35 + s.z * 25}%, ${alpha})`;
-      ctx.fillRect(s.x, s.y, 2, 2);
+      const t = timeRef.current;
+      const flicker = 0.35 + 0.35 * Math.sin(t * 3 + s.x * 0.15 + s.y * 0.12);
+      const alpha = Math.max(0, Math.min(0.4, flicker));
+      const r = 1.4 + s.z * 0.8;
+      ctx.save();
+      ctx.shadowColor = `hsla(70, 90%, 65%, ${alpha})`;
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = `hsla(70, 90%, 65%, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     // particles
@@ -474,7 +485,7 @@ export const GameCanvas = () => {
       ctx.save();
       // darkness overlay
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "rgba(0,0,0,0.78)";
+      ctx.fillStyle = "rgba(0,0,0,0.62)";
       ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
       // cut out a cone in front of the player
       const len = 240;
