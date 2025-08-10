@@ -240,11 +240,10 @@ export const GameCanvas = () => {
     if (!player) return;
 
     // Move player (classic WASD/Arrow movement)
-    const left = keys.current["arrowleft"] || keys.current["a"];
-    const right = keys.current["arrowright"] || keys.current["d"];
-    // reverse up/down for more natural movement
-    const down = keys.current["arrowup"] || keys.current["w"];
-    const up = keys.current["arrowdown"] || keys.current["s"];
+    const left = keys.current["arrowleft"] || keys.current["a"]; 
+    const right = keys.current["arrowright"] || keys.current["d"]; 
+    const up = keys.current["arrowup"] || keys.current["w"]; 
+    const down = keys.current["arrowdown"] || keys.current["s"]; 
 
     player.vel.x = (right ? 1 : 0) - (left ? 1 : 0);
     player.vel.y = (down ? 1 : 0) - (up ? 1 : 0);
