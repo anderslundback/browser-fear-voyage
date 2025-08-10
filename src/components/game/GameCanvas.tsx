@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card } from "../ui/card";
 
 // Types
 interface Vec2 {
@@ -240,10 +241,10 @@ export const GameCanvas = () => {
     if (!player) return;
 
     // Move player (classic WASD/Arrow movement)
-    const left = keys.current["arrowleft"] || keys.current["a"]; 
-    const right = keys.current["arrowright"] || keys.current["d"]; 
-    const up = keys.current["arrowup"] || keys.current["w"]; 
-    const down = keys.current["arrowdown"] || keys.current["s"]; 
+    const left = keys.current["arrowleft"] || keys.current["a"];
+    const right = keys.current["arrowright"] || keys.current["d"];
+    const up = keys.current["arrowup"] || keys.current["w"];
+    const down = keys.current["arrowdown"] || keys.current["s"];
 
     player.vel.x = (right ? 1 : 0) - (left ? 1 : 0);
     player.vel.y = (down ? 1 : 0) - (up ? 1 : 0);
@@ -518,7 +519,6 @@ export const GameCanvas = () => {
     // create a burst when game ends
     const p = playerRef.current;
     if (p) emitExplosion(p.pos.x, p.pos.y, "hsl(var(--destructive))");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameOver]);
 
   return (
@@ -570,31 +570,35 @@ export const GameCanvas = () => {
             )}
             {paused && !gameOver && (
               <div className="absolute inset-0 grid place-items-center bg-background/40 backdrop-blur-sm">
-                <div className="text-center space-y-4 p-6">
-                  <h3 className="text-xl font-semibold">Game Paused</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Press P to resume or click below
-                  </p>
-                  <Button variant="secondary" onClick={() => setPaused(false)}>
-                    Resume Game
-                  </Button>
-                </div>
+                <Card>
+                  <div className="text-center space-y-4 p-6">
+                    <h3 className="text-xl font-semibold">Game Paused</h3>
+                    <p className="text-sm text-foreground">
+                      Press P to resume or click below
+                    </p>
+                    <Button onClick={() => setPaused(false)}>
+                      Resume Game
+                    </Button>
+                  </div>
+                </Card>
               </div>
             )}
             {gameOver && (
               <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur">
-                <div className="text-center space-y-4 p-6">
-                  <h3 className="text-2xl font-semibold">Game Over</h3>
-                  <p className="text-muted-foreground">
-                    You survived and scored: {score} points
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    The alien swarm got you in the end...
-                  </p>
-                  <Button variant="hero" size="lg" onClick={initGame}>
-                    Play Again
-                  </Button>
-                </div>
+                <Card>
+                  <div className="text-center space-y-4 p-6">
+                    <h3 className="text-2xl font-semibold">Game Over</h3>
+                    <p className="text-muted-foreground">
+                      You survived and scored: {score} points
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      The alien swarm got you in the end...
+                    </p>
+                    <Button size="lg" onClick={initGame}>
+                      Play Again
+                    </Button>
+                  </div>
+                </Card>
               </div>
             )}
           </div>
