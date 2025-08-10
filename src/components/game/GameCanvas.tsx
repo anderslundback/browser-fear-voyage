@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -36,51 +37,49 @@ export const GameCanvas = () => {
   const bulletsRef = useRef<Bullet[]>([]);
   const enemiesRef = useRef<Enemy[]>([]);
   const particlesRef = useRef<Particle[]>([]);
-  const starsRef = useRef<{ x: number; y: number; z: number }[]>([]);
-  // Jungle ground pattern tile and pattern
-  const groundTileRef = useRef<HTMLCanvasElement | null>(null);
-  const groundPatternRef = useRef<CanvasPattern | null>(null);
+  // Green field background pattern
+  const fieldTileRef = useRef<HTMLCanvasElement | null>(null);
+  const fieldPatternRef = useRef<CanvasPattern | null>(null);
   const timeRef = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
   const spawnTimerRef = useRef(0);
   const aimRef = useRef<Vec2>({ x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 - 120 });
   const firingRef = useRef(false);
 
-  // Build jungle ground tile once
-  const buildJungleTile = () => {
-    if (groundTileRef.current) return;
+  // Build green field tile (simplified grassy field like original)
+  const buildFieldTile = () => {
+    if (fieldTileRef.current) return;
     const tile = document.createElement("canvas");
-    tile.width = 160;
-    tile.height = 160;
+    tile.width = 128;
+    tile.height = 128;
     const c = tile.getContext("2d");
     if (!c) return;
-    // base ground
-    c.fillStyle = "hsl(140, 20%, 8%)";
+    
+    // Base green field
+    c.fillStyle = "hsl(85, 40%, 25%)";
     c.fillRect(0, 0, tile.width, tile.height);
-    // leaf clusters
-    for (let i = 0; i < 28; i++) {
+    
+    // Grass texture patches
+    for (let i = 0; i < 40; i++) {
       const x = Math.random() * tile.width;
       const y = Math.random() * tile.height;
-      const r = 8 + Math.random() * 14;
-      c.save();
-      c.translate(x, y);
-      c.rotate(Math.random() * Math.PI);
-      c.fillStyle = "hsla(140, 28%, 14%, 0.7)";
+      const size = 2 + Math.random() * 4;
+      c.fillStyle = `hsl(${80 + Math.random() * 20}, ${35 + Math.random() * 15}%, ${20 + Math.random() * 15}%)`;
+      c.fillRect(x, y, size, size);
+    }
+    
+    // Some darker spots for variation
+    for (let i = 0; i < 15; i++) {
+      const x = Math.random() * tile.width;
+      const y = Math.random() * tile.height;
+      const r = 3 + Math.random() * 8;
+      c.fillStyle = "hsla(85, 30%, 18%, 0.6)";
       c.beginPath();
-      c.moveTo(0, -r);
-      c.quadraticCurveTo(r * 0.8, -r * 0.2, 0, r);
-      c.quadraticCurveTo(-r * 0.8, -r * 0.2, 0, -r);
+      c.arc(x, y, r, 0, Math.PI * 2);
       c.fill();
-      c.restore();
     }
-    // speckled debris
-    for (let i = 0; i < 260; i++) {
-      const x = Math.random() * tile.width;
-      const y = Math.random() * tile.height;
-      c.fillStyle = i % 2 ? "hsla(140, 16%, 12%, 0.5)" : "hsla(140, 12%, 10%, 0.4)";
-      c.fillRect(x, y, 1, 1);
-    }
-    groundTileRef.current = tile;
+    
+    fieldTileRef.current = tile;
   };
 
   // Setup input
@@ -110,21 +109,16 @@ export const GameCanvas = () => {
     setPaused(false);
 
     playerRef.current = {
-      pos: { x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT - 80 },
+      pos: { x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 },
       vel: { x: 0, y: 0 },
-      radius: 16,
+      radius: 12,
       alive: true,
-      speed: 260,
+      speed: 180,
       cooldown: 0,
     };
     bulletsRef.current = [];
     enemiesRef.current = [];
     particlesRef.current = [];
-    starsRef.current = Array.from({ length: 120 }, () => ({
-      x: Math.random() * INTERNAL_WIDTH,
-      y: Math.random() * INTERNAL_HEIGHT,
-      z: Math.random() * 2 + 0.5,
-    }));
     spawnTimerRef.current = 0;
     lastTimeRef.current = null;
     setRunning(true);
@@ -152,11 +146,11 @@ export const GameCanvas = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // ensure jungle ground pattern
-    if (!groundPatternRef.current) {
-      if (!groundTileRef.current) buildJungleTile();
-      if (groundTileRef.current) {
-        groundPatternRef.current = ctx.createPattern(groundTileRef.current, "repeat");
+    // ensure field pattern
+    if (!fieldPatternRef.current) {
+      if (!fieldTileRef.current) buildFieldTile();
+      if (fieldTileRef.current) {
+        fieldPatternRef.current = ctx.createPattern(fieldTileRef.current, "repeat");
       }
     }
 
@@ -215,7 +209,7 @@ export const GameCanvas = () => {
     const player = playerRef.current;
     if (!player) return;
 
-    // Move player
+    // Move player (classic WASD/Arrow movement)
     const left = keys.current["arrowleft"] || keys.current["a"]; 
     const right = keys.current["arrowright"] || keys.current["d"]; 
     const up = keys.current["arrowup"] || keys.current["w"]; 
@@ -225,10 +219,10 @@ export const GameCanvas = () => {
     player.vel.y = (down ? 1 : 0) - (up ? 1 : 0);
 
     const len = Math.hypot(player.vel.x, player.vel.y) || 1;
-    player.pos.x = clamp(player.pos.x + (player.vel.x / len) * player.speed * dt, 20, INTERNAL_WIDTH - 20);
-    player.pos.y = clamp(player.pos.y + (player.vel.y / len) * player.speed * dt, 20, INTERNAL_HEIGHT - 20);
+    player.pos.x = clamp(player.pos.x + (player.vel.x / len) * player.speed * dt, 15, INTERNAL_WIDTH - 15);
+    player.pos.y = clamp(player.pos.y + (player.vel.y / len) * player.speed * dt, 15, INTERNAL_HEIGHT - 15);
 
-    // Shooting (rapid-fire, toward aim)
+    // Rapid-fire shooting (basic rifle style)
     player.cooldown -= dt;
     const firing = firingRef.current || keys.current[" "] || keys.current["space"];
     if (firing && player.cooldown <= 0) {
@@ -237,15 +231,15 @@ export const GameCanvas = () => {
       const L = Math.hypot(ax, ay) || 1;
       const dirx = ax / L;
       const diry = ay / L;
-      const speed = 820;
+      const speed = 400;
       bulletsRef.current.push({
-        pos: { x: player.pos.x + dirx * 18, y: player.pos.y + diry * 18 },
+        pos: { x: player.pos.x + dirx * 15, y: player.pos.y + diry * 15 },
         vel: { x: dirx * speed, y: diry * speed },
-        radius: 3.5,
+        radius: 2,
         alive: true,
         fromPlayer: true,
       });
-      player.cooldown = 0.06;
+      player.cooldown = 0.08; // Slower than before, more like original
     }
 
     // Update bullets
@@ -262,14 +256,14 @@ export const GameCanvas = () => {
     });
     bulletsRef.current = bulletsRef.current.filter((b) => b.alive);
 
-    // Spawn enemies
+    // Spawn enemies (robot-frog aliens from all edges)
     spawnTimerRef.current -= dt;
     if (spawnTimerRef.current <= 0) {
       spawnWave();
-      spawnTimerRef.current = Math.max(0.6, 2.4 - score * 0.002);
+      spawnTimerRef.current = Math.max(0.8, 2.0 - score * 0.001);
     }
 
-    // Update enemies (seek the player)
+    // Update enemies (simple direct approach)
     enemiesRef.current.forEach((e) => {
       e.t += dt;
       const player = playerRef.current;
@@ -277,11 +271,9 @@ export const GameCanvas = () => {
       const dx = player.pos.x - e.pos.x;
       const dy = player.pos.y - e.pos.y;
       const l = Math.hypot(dx, dy) || 1;
-      const base = 48 + Math.min(140, score * 0.05);
-      const jitterX = Math.sin(e.t * 2 + e.pos.y * 0.03) * 14;
-      const jitterY = Math.cos(e.t * 2 + e.pos.x * 0.03) * 14;
-      e.pos.x += (dx / l) * base * dt + jitterX * dt;
-      e.pos.y += (dy / l) * base * dt + jitterY * dt;
+      const base = 35 + Math.min(80, score * 0.03);
+      e.pos.x += (dx / l) * base * dt;
+      e.pos.y += (dy / l) * base * dt;
     });
     enemiesRef.current = enemiesRef.current.filter((e) => e.alive);
 
@@ -322,17 +314,6 @@ export const GameCanvas = () => {
       p.pos.y += p.vel.y * dt;
     });
     particlesRef.current = particlesRef.current.filter((p) => p.life > 0);
-
-    // Stars
-    starsRef.current.forEach((s) => {
-      const drift = 6 + s.z * 8;
-      s.x += Math.sin((s.y + s.z) * 0.05) * drift * dt;
-      s.y += Math.cos((s.x + s.z) * 0.05) * drift * dt;
-      if (s.x < 0) s.x += INTERNAL_WIDTH;
-      if (s.x > INTERNAL_WIDTH) s.x -= INTERNAL_WIDTH;
-      if (s.y < 0) s.y += INTERNAL_HEIGHT;
-      if (s.y > INTERNAL_HEIGHT) s.y -= INTERNAL_HEIGHT;
-    });
   };
 
   const hitPlayer = (player: Player) => {
@@ -344,38 +325,38 @@ export const GameCanvas = () => {
       setRunning(false);
     } else {
       // brief invulnerable reposition
-      player.pos = { x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT - 80 };
+      player.pos = { x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 };
     }
   };
 
   const emitExplosion = (x: number, y: number, color: string) => {
-    for (let i = 0; i < 24; i++) {
-      const a = (Math.PI * 2 * i) / 24 + Math.random() * 0.3;
-      const sp = 80 + Math.random() * 120;
+    for (let i = 0; i < 16; i++) {
+      const a = (Math.PI * 2 * i) / 16 + Math.random() * 0.3;
+      const sp = 60 + Math.random() * 80;
       particlesRef.current.push({
         pos: { x, y },
         vel: { x: Math.cos(a) * sp, y: Math.sin(a) * sp },
-        life: 0.6 + Math.random() * 0.4,
+        life: 0.4 + Math.random() * 0.3,
         color,
       });
     }
   };
 
   const spawnWave = () => {
-    const count = 6 + Math.floor(Math.random() * 4) + Math.floor(score / 300);
+    const count = 4 + Math.floor(Math.random() * 3) + Math.floor(score / 500);
     for (let i = 0; i < count; i++) {
       const side = Math.floor(Math.random() * 4); // 0:top,1:right,2:bottom,3:left
       let x = 0, y = 0;
-      if (side === 0) { x = Math.random() * INTERNAL_WIDTH; y = -30; }
-      else if (side === 1) { x = INTERNAL_WIDTH + 30; y = Math.random() * INTERNAL_HEIGHT; }
-      else if (side === 2) { x = Math.random() * INTERNAL_WIDTH; y = INTERNAL_HEIGHT + 30; }
-      else { x = -30; y = Math.random() * INTERNAL_HEIGHT; }
+      if (side === 0) { x = Math.random() * INTERNAL_WIDTH; y = -25; }
+      else if (side === 1) { x = INTERNAL_WIDTH + 25; y = Math.random() * INTERNAL_HEIGHT; }
+      else if (side === 2) { x = Math.random() * INTERNAL_WIDTH; y = INTERNAL_HEIGHT + 25; }
+      else { x = -25; y = Math.random() * INTERNAL_HEIGHT; }
       enemiesRef.current.push({
         pos: { x, y },
         vel: { x: 0, y: 0 },
-        radius: 16,
+        radius: 14,
         alive: true,
-        hp: 1 + Math.floor(score / 600),
+        hp: 1 + Math.floor(score / 800),
         pattern: Math.floor(Math.random() * 3),
         t: 0,
       });
@@ -383,82 +364,73 @@ export const GameCanvas = () => {
   };
 
   const draw = (ctx: CanvasRenderingContext2D) => {
-    // scale for crisp rendering
     ctx.clearRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
-    // Jungle ground pattern
-    if (groundPatternRef.current) {
-      ctx.fillStyle = groundPatternRef.current;
+    // Green field background (like original)
+    if (fieldPatternRef.current) {
+      ctx.fillStyle = fieldPatternRef.current;
     } else {
-      const bg = ctx.createLinearGradient(0, 0, 0, INTERNAL_HEIGHT);
-      bg.addColorStop(0, "hsl(140, 20%, 6%)");
-      bg.addColorStop(1, "hsl(140, 22%, 4%)");
-      ctx.fillStyle = bg;
+      ctx.fillStyle = "hsl(85, 40%, 25%)";
     }
     ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
 
-    // subtle ambient moonlight to reveal ground and enemies
-    const ambient = ctx.createRadialGradient(
-      INTERNAL_WIDTH * 0.5,
-      INTERNAL_HEIGHT * 0.2,
-      20,
-      INTERNAL_WIDTH * 0.5,
-      INTERNAL_HEIGHT * 0.2,
-      INTERNAL_HEIGHT * 0.9
-    );
-    ambient.addColorStop(0, "rgba(255,255,255,0.12)");
-    ambient.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = ambient;
-    ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
-
-    // fireflies in the jungle
-    for (const s of starsRef.current) {
-      const t = timeRef.current;
-      const flicker = 0.35 + 0.35 * Math.sin(t * 3 + s.x * 0.15 + s.y * 0.12);
-      const alpha = Math.max(0, Math.min(0.4, flicker));
-      const r = 1.4 + s.z * 0.8;
-      ctx.save();
-      ctx.shadowColor = `hsla(70, 90%, 65%, ${alpha})`;
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = `hsla(70, 90%, 65%, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // particles
+    // particles (blood/gore effects)
     for (const p of particlesRef.current) {
       ctx.fillStyle = p.color;
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
       ctx.beginPath();
-      ctx.arc(p.pos.x, p.pos.y, 2.5, 0, Math.PI * 2);
+      ctx.arc(p.pos.x, p.pos.y, 2, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
 
-    // bullets
-    ctx.fillStyle = "hsl(var(--accent))";
+    // bullets (simple white/yellow dots)
+    ctx.fillStyle = "hsl(50, 90%, 80%)";
+    ctx.strokeStyle = "hsl(50, 90%, 60%)";
+    ctx.lineWidth = 1;
     bulletsRef.current.forEach((b) => {
       ctx.beginPath();
       ctx.arc(b.pos.x, b.pos.y, b.radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
     });
 
-    // enemies (alien glow)
+    // enemies (robot-frog aliens - simple green/gray sprites)
     enemiesRef.current.forEach((e) => {
       ctx.save();
-      const grd = ctx.createRadialGradient(e.pos.x, e.pos.y, 4, e.pos.x, e.pos.y, 20);
-      grd.addColorStop(0, "hsla(135,80%,55%,0.9)");
-      grd.addColorStop(1, "hsla(135,80%,30%,0.15)");
-      ctx.fillStyle = grd;
+      // Body
+      ctx.fillStyle = "hsl(120, 40%, 30%)";
+      ctx.strokeStyle = "hsl(120, 50%, 20%)";
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(e.pos.x, e.pos.y, e.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Simple "spindly limbs" effect
+      const t = e.t * 4;
+      for (let i = 0; i < 4; i++) {
+        const angle = (Math.PI * 2 * i) / 4 + t;
+        const limbX = e.pos.x + Math.cos(angle) * (e.radius + 4);
+        const limbY = e.pos.y + Math.sin(angle) * (e.radius + 4);
+        ctx.strokeStyle = "hsl(120, 30%, 25%)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(e.pos.x, e.pos.y);
+        ctx.lineTo(limbX, limbY);
+        ctx.stroke();
+      }
+      
+      // Simple eyes
+      ctx.fillStyle = "hsl(0, 80%, 60%)";
+      ctx.beginPath();
+      ctx.arc(e.pos.x - 4, e.pos.y - 3, 2, 0, Math.PI * 2);
+      ctx.arc(e.pos.x + 4, e.pos.y - 3, 2, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     });
 
-    // player (marine) aiming toward flashlight
+    // player (simple human soldier sprite)
     const player = playerRef.current;
     if (player && player.alive) {
       ctx.save();
@@ -466,48 +438,28 @@ export const GameCanvas = () => {
       const ang = Math.atan2(aim.y - player.pos.y, aim.x - player.pos.x);
       ctx.translate(player.pos.x, player.pos.y);
       ctx.rotate(ang + Math.PI / 2);
+      
+      // Simple soldier body
       ctx.fillStyle = "hsl(var(--primary))";
-      ctx.strokeStyle = "hsl(var(--primary))";
+      ctx.strokeStyle = "hsl(var(--primary-foreground))";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      ctx.lineTo(8, 8);
+      ctx.lineTo(0, 4);
+      ctx.lineTo(-8, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Weapon barrel
+      ctx.strokeStyle = "hsl(40, 50%, 40%)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(0, -18);
-      ctx.lineTo(14, 12);
-      ctx.lineTo(0, 6);
-      ctx.lineTo(-14, 12);
-      ctx.closePath();
-      ctx.fill();
-      ctx.shadowColor = "hsla(258,85%,62%,0.6)";
-      ctx.shadowBlur = 12;
+      ctx.moveTo(0, -12);
+      ctx.lineTo(0, -20);
       ctx.stroke();
-      ctx.restore();
-
-      // flashlight cone (reveals darkness ahead)
-      ctx.save();
-      // darkness overlay
-      ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "rgba(0,0,0,0.62)";
-      ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
-      // cut out a cone in front of the player
-      const len = 240;
-      const spread = Math.PI / 6; // 30°
-      const pAng = ang;
-      const p1x = player.pos.x + Math.cos(pAng - spread) * len;
-      const p1y = player.pos.y + Math.sin(pAng - spread) * len;
-      const p2x = player.pos.x + Math.cos(pAng + spread) * len;
-      const p2y = player.pos.y + Math.sin(pAng + spread) * len;
-
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.beginPath();
-      ctx.moveTo(player.pos.x, player.pos.y);
-      ctx.lineTo(p1x, p1y);
-      ctx.arc(player.pos.x, player.pos.y, len, pAng - spread, pAng + spread);
-      ctx.closePath();
-      const cone = ctx.createRadialGradient(player.pos.x, player.pos.y, 0, player.pos.x, player.pos.y, len);
-      cone.addColorStop(0, "rgba(0,0,0,1)");
-      cone.addColorStop(0.6, "rgba(0,0,0,0.6)");
-      cone.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = cone;
-      ctx.fill();
+      
       ctx.restore();
     }
   };
@@ -547,17 +499,19 @@ export const GameCanvas = () => {
             {!running && !gameOver && (
               <div className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-sm animate-fade-in">
                 <div className="text-center space-y-4 p-6">
-                  <h2 className="text-2xl font-semibold">Phobia 2 – Top-Down Shooter</h2>
-                  <p className="text-muted-foreground">WASD / Arrows to move • Space to shoot • P to pause</p>
-                  <Button variant="hero" size="lg" onClick={initGame} className="hover-scale">Start</Button>
+                  <h2 className="text-2xl font-semibold">Phobia 2 – Classic Arcade Shooter</h2>
+                  <p className="text-muted-foreground">WASD / Arrows to move • Mouse to aim • Click/Space to shoot • P to pause</p>
+                  <p className="text-xs text-muted-foreground">Survive the endless alien swarm!</p>
+                  <Button variant="hero" size="lg" onClick={initGame} className="hover-scale">Start Game</Button>
                 </div>
               </div>
             )}
             {paused && !gameOver && (
               <div className="absolute inset-0 grid place-items-center bg-background/40 backdrop-blur-sm">
                 <div className="text-center space-y-4 p-6">
-                  <h3 className="text-xl font-semibold">Paused</h3>
-                  <Button variant="secondary" onClick={() => setPaused(false)}>Resume</Button>
+                  <h3 className="text-xl font-semibold">Game Paused</h3>
+                  <p className="text-sm text-muted-foreground">Press P to resume or click below</p>
+                  <Button variant="secondary" onClick={() => setPaused(false)}>Resume Game</Button>
                 </div>
               </div>
             )}
@@ -565,7 +519,8 @@ export const GameCanvas = () => {
               <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur">
                 <div className="text-center space-y-4 p-6">
                   <h3 className="text-2xl font-semibold">Game Over</h3>
-                  <p className="text-muted-foreground">Final Score: {score}</p>
+                  <p className="text-muted-foreground">You survived and scored: {score} points</p>
+                  <p className="text-xs text-muted-foreground">The alien swarm got you in the end...</p>
                   <Button variant="hero" size="lg" onClick={initGame}>Play Again</Button>
                 </div>
               </div>
