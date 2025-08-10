@@ -1,19 +1,41 @@
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 // Types
-interface Vec2 { x: number; y: number }
-interface Entity { pos: Vec2; vel: Vec2; radius: number; alive: boolean }
-interface Player extends Entity { speed: number; cooldown: number }
-interface Bullet extends Entity { fromPlayer: boolean }
-interface Enemy extends Entity { hp: number; pattern: number; t: number }
-interface Particle { pos: Vec2; vel: Vec2; life: number; color: string }
+interface Vec2 {
+  x: number;
+  y: number;
+}
+interface Entity {
+  pos: Vec2;
+  vel: Vec2;
+  radius: number;
+  alive: boolean;
+}
+interface Player extends Entity {
+  speed: number;
+  cooldown: number;
+}
+interface Bullet extends Entity {
+  fromPlayer: boolean;
+}
+interface Enemy extends Entity {
+  hp: number;
+  pattern: number;
+  t: number;
+}
+interface Particle {
+  pos: Vec2;
+  vel: Vec2;
+  life: number;
+  color: string;
+}
 
 const INTERNAL_WIDTH = 480;
 const INTERNAL_HEIGHT = 720;
 
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
 const dist2 = (a: Vec2, b: Vec2) => {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -43,7 +65,10 @@ export const GameCanvas = () => {
   const timeRef = useRef(0);
   const lastTimeRef = useRef<number | null>(null);
   const spawnTimerRef = useRef(0);
-  const aimRef = useRef<Vec2>({ x: INTERNAL_WIDTH / 2, y: INTERNAL_HEIGHT / 2 - 120 });
+  const aimRef = useRef<Vec2>({
+    x: INTERNAL_WIDTH / 2,
+    y: INTERNAL_HEIGHT / 2 - 120,
+  });
   const firingRef = useRef(false);
 
   // Build green field tile (simplified grassy field like original)
@@ -54,20 +79,22 @@ export const GameCanvas = () => {
     tile.height = 128;
     const c = tile.getContext("2d");
     if (!c) return;
-    
+
     // Base green field
     c.fillStyle = "hsl(85, 40%, 25%)";
     c.fillRect(0, 0, tile.width, tile.height);
-    
+
     // Grass texture patches
     for (let i = 0; i < 40; i++) {
       const x = Math.random() * tile.width;
       const y = Math.random() * tile.height;
       const size = 2 + Math.random() * 4;
-      c.fillStyle = `hsl(${80 + Math.random() * 20}, ${35 + Math.random() * 15}%, ${20 + Math.random() * 15}%)`;
+      c.fillStyle = `hsl(${80 + Math.random() * 20}, ${
+        35 + Math.random() * 15
+      }%, ${20 + Math.random() * 15}%)`;
       c.fillRect(x, y, size, size);
     }
-    
+
     // Some darker spots for variation
     for (let i = 0; i < 15; i++) {
       const x = Math.random() * tile.width;
@@ -78,7 +105,7 @@ export const GameCanvas = () => {
       c.arc(x, y, r, 0, Math.PI * 2);
       c.fill();
     }
-    
+
     fieldTileRef.current = tile;
   };
 
@@ -150,7 +177,10 @@ export const GameCanvas = () => {
     if (!fieldPatternRef.current) {
       if (!fieldTileRef.current) buildFieldTile();
       if (fieldTileRef.current) {
-        fieldPatternRef.current = ctx.createPattern(fieldTileRef.current, "repeat");
+        fieldPatternRef.current = ctx.createPattern(
+          fieldTileRef.current,
+          "repeat"
+        );
       }
     }
 
@@ -210,22 +240,31 @@ export const GameCanvas = () => {
     if (!player) return;
 
     // Move player (classic WASD/Arrow movement)
-    const left = keys.current["arrowleft"] || keys.current["a"]; 
-    const right = keys.current["arrowright"] || keys.current["d"]; 
+    const left = keys.current["arrowleft"] || keys.current["a"];
+    const right = keys.current["arrowright"] || keys.current["d"];
     // reverse up/down for more natural movement
-    const down = keys.current["arrowup"] || keys.current["w"]; 
-    const up = keys.current["arrowdown"] || keys.current["s"]; 
+    const down = keys.current["arrowup"] || keys.current["w"];
+    const up = keys.current["arrowdown"] || keys.current["s"];
 
     player.vel.x = (right ? 1 : 0) - (left ? 1 : 0);
     player.vel.y = (down ? 1 : 0) - (up ? 1 : 0);
 
     const len = Math.hypot(player.vel.x, player.vel.y) || 1;
-    player.pos.x = clamp(player.pos.x + (player.vel.x / len) * player.speed * dt, 15, INTERNAL_WIDTH - 15);
-    player.pos.y = clamp(player.pos.y + (player.vel.y / len) * player.speed * dt, 15, INTERNAL_HEIGHT - 15);
+    player.pos.x = clamp(
+      player.pos.x + (player.vel.x / len) * player.speed * dt,
+      15,
+      INTERNAL_WIDTH - 15
+    );
+    player.pos.y = clamp(
+      player.pos.y + (player.vel.y / len) * player.speed * dt,
+      15,
+      INTERNAL_HEIGHT - 15
+    );
 
     // Rapid-fire shooting (basic rifle style)
     player.cooldown -= dt;
-    const firing = firingRef.current || keys.current[" "] || keys.current["space"];
+    const firing =
+      firingRef.current || keys.current[" "] || keys.current["space"];
     if (firing && player.cooldown <= 0) {
       const ax = aimRef.current.x - player.pos.x;
       const ay = aimRef.current.y - player.pos.y;
@@ -347,11 +386,21 @@ export const GameCanvas = () => {
     const count = 4 + Math.floor(Math.random() * 3) + Math.floor(score / 500);
     for (let i = 0; i < count; i++) {
       const side = Math.floor(Math.random() * 4); // 0:top,1:right,2:bottom,3:left
-      let x = 0, y = 0;
-      if (side === 0) { x = Math.random() * INTERNAL_WIDTH; y = -25; }
-      else if (side === 1) { x = INTERNAL_WIDTH + 25; y = Math.random() * INTERNAL_HEIGHT; }
-      else if (side === 2) { x = Math.random() * INTERNAL_WIDTH; y = INTERNAL_HEIGHT + 25; }
-      else { x = -25; y = Math.random() * INTERNAL_HEIGHT; }
+      let x = 0,
+        y = 0;
+      if (side === 0) {
+        x = Math.random() * INTERNAL_WIDTH;
+        y = -25;
+      } else if (side === 1) {
+        x = INTERNAL_WIDTH + 25;
+        y = Math.random() * INTERNAL_HEIGHT;
+      } else if (side === 2) {
+        x = Math.random() * INTERNAL_WIDTH;
+        y = INTERNAL_HEIGHT + 25;
+      } else {
+        x = -25;
+        y = Math.random() * INTERNAL_HEIGHT;
+      }
       enemiesRef.current.push({
         pos: { x, y },
         vel: { x: 0, y: 0 },
@@ -407,7 +456,7 @@ export const GameCanvas = () => {
       ctx.arc(e.pos.x, e.pos.y, e.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      
+
       // Simple "spindly limbs" effect
       const t = e.t * 4;
       for (let i = 0; i < 4; i++) {
@@ -421,7 +470,7 @@ export const GameCanvas = () => {
         ctx.lineTo(limbX, limbY);
         ctx.stroke();
       }
-      
+
       // Simple eyes
       ctx.fillStyle = "hsl(0, 80%, 60%)";
       ctx.beginPath();
@@ -439,7 +488,7 @@ export const GameCanvas = () => {
       const ang = Math.atan2(aim.y - player.pos.y, aim.x - player.pos.x);
       ctx.translate(player.pos.x, player.pos.y);
       ctx.rotate(ang + Math.PI / 2);
-      
+
       // Simple soldier body
       ctx.fillStyle = "hsl(var(--primary))";
       ctx.strokeStyle = "hsl(var(--primary-foreground))";
@@ -452,7 +501,7 @@ export const GameCanvas = () => {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-      
+
       // Weapon barrel
       ctx.strokeStyle = "hsl(40, 50%, 40%)";
       ctx.lineWidth = 2;
@@ -460,7 +509,7 @@ export const GameCanvas = () => {
       ctx.moveTo(0, -12);
       ctx.lineTo(0, -20);
       ctx.stroke();
-      
+
       ctx.restore();
     }
   };
@@ -487,8 +536,12 @@ export const GameCanvas = () => {
         />
         <div className="rounded-xl border border-border bg-card shadow-[var(--shadow-elegant)] overflow-hidden">
           <div className="flex items-center justify-between p-3 sm:p-4">
-            <div className="text-sm sm:text-base font-medium">Score: {score}</div>
-            <div className="text-sm sm:text-base font-medium">Lives: {lives}</div>
+            <div className="text-sm sm:text-base font-medium">
+              Score: {score}
+            </div>
+            <div className="text-sm sm:text-base font-medium">
+              Lives: {lives}
+            </div>
           </div>
           <div className="relative">
             <canvas
@@ -500,10 +553,19 @@ export const GameCanvas = () => {
             {!running && !gameOver && (
               <div className="absolute inset-0 grid place-items-center bg-background/60 backdrop-blur-sm animate-fade-in">
                 <div className="text-center space-y-4 p-6">
-                  <h2 className="text-2xl font-semibold">Phobia 2 – Classic Arcade Shooter</h2>
-                  <p className="text-muted-foreground">WASD / Arrows to move • Mouse to aim • Click/Space to shoot • P to pause</p>
-                  <p className="text-xs text-muted-foreground">Survive the endless alien swarm!</p>
-                  <Button variant="hero" size="lg" onClick={initGame} className="hover-scale">Start Game</Button>
+                  <h2 className="text-2xl font-semibold">
+                    Phobia 2 – Classic Arcade Shooter
+                  </h2>
+                  <p className="text-muted-foreground">
+                    WASD / Arrows to move • Mouse to aim • Click/Space to shoot
+                    • P to pause
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Survive the endless alien swarm!
+                  </p>
+                  <Button size="lg" onClick={initGame} className="hover-scale">
+                    Start Game
+                  </Button>
                 </div>
               </div>
             )}
@@ -511,8 +573,12 @@ export const GameCanvas = () => {
               <div className="absolute inset-0 grid place-items-center bg-background/40 backdrop-blur-sm">
                 <div className="text-center space-y-4 p-6">
                   <h3 className="text-xl font-semibold">Game Paused</h3>
-                  <p className="text-sm text-muted-foreground">Press P to resume or click below</p>
-                  <Button variant="secondary" onClick={() => setPaused(false)}>Resume Game</Button>
+                  <p className="text-sm text-muted-foreground">
+                    Press P to resume or click below
+                  </p>
+                  <Button variant="secondary" onClick={() => setPaused(false)}>
+                    Resume Game
+                  </Button>
                 </div>
               </div>
             )}
@@ -520,9 +586,15 @@ export const GameCanvas = () => {
               <div className="absolute inset-0 grid place-items-center bg-background/70 backdrop-blur">
                 <div className="text-center space-y-4 p-6">
                   <h3 className="text-2xl font-semibold">Game Over</h3>
-                  <p className="text-muted-foreground">You survived and scored: {score} points</p>
-                  <p className="text-xs text-muted-foreground">The alien swarm got you in the end...</p>
-                  <Button variant="hero" size="lg" onClick={initGame}>Play Again</Button>
+                  <p className="text-muted-foreground">
+                    You survived and scored: {score} points
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    The alien swarm got you in the end...
+                  </p>
+                  <Button variant="hero" size="lg" onClick={initGame}>
+                    Play Again
+                  </Button>
                 </div>
               </div>
             )}
