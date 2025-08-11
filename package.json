@@ -1,7 +1,11 @@
 {
-  "name": "vite_react_shadcn_ts",
-  "private": true,
-  "version": "0.0.0",
+  "name": "swarm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anderslundback/swarm.git"
+  },
+  "private": false,
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

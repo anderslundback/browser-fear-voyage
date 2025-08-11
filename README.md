@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/anderslundback/swarm)
 
 ## Project info
 
